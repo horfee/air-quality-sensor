@@ -17,6 +17,10 @@
 #include <i2cdev.h>
 #include <esp_err.h>
 
+// #include <VOCGasIndexAlgorithm.h>
+// #include <NOxGasIndexAlgorithm.h>
+#include "algorithm/sensirion_gas_index_algorithm.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -29,7 +33,8 @@ typedef struct
     i2c_dev_t i2c_dev;
     uint16_t serial[3];
     uint16_t featureset;
-    //VocAlgorithmParams voc;
+    GasIndexAlgorithmParams vocParams;
+    GasIndexAlgorithmParams noxParams;
 } sgp41_t;
 
 /**
@@ -128,7 +133,9 @@ esp_err_t sgp41_measure_raw(sgp41_t *dev, float humidity, float temperature, uin
  * @param[out] voc_index Calculated VOC index
  * @return
  */
-esp_err_t sgp41_measure_index(sgp41_t *dev, float humidity, float temperature, int8_t *voc_index, int8_t *nox_index);
+esp_err_t sgp41_measure_index(sgp41_t *dev, float humidity, float temperature, int32_t *voc_index, int32_t *nox_index);
+
+esp_err_t sgp41_convert_raw(sgp41_t *dev, uint16_t sraw_voc, uint16_t sraw_nox, int32_t *voc_index, int32_t *nox_index);
 
 #ifdef __cplusplus
 }

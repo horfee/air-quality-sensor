@@ -170,6 +170,15 @@ static int device_identify(hap_acc_t *ha)
 //     return ret;
 // }
 
+static int8_t resolveAirQualityIndex(int32_t index) {
+    if (index <= 1) return 0;   // undetermined;
+    if ( index <= 150 ) return 1; // Excellent;
+    if ( index <= 250 ) return 2; // Good
+    if ( index <= 325 ) return 3; // Fair
+    if ( index <= 400 ) return 4; // Inferior
+    return 5; // Poor;
+}
+
 static void measureAirQuality(void *pvParameters) {
 
 
@@ -206,19 +215,36 @@ static void measureAirQuality(void *pvParameters) {
             printf("SHT3x Sensor: %.2f °C, %.2f %%\n", temperature, humidity);
         }
 
+
+        hap_char_t* airQualityChar = hap_serv_get_first_char(airQualityService);
         if ( conditioning > 0 ) {
             err = sgp41_execute_conditioning(&airqualityDevice, temperatureCompensation, rHumidityCompensation, &raw_voc);
             if ( err == ESP_OK ) {
                 conditioning--;
                 //hap_char_update_val()
+                int32_t vocIndex;
+                if ( ESP_OK == sgp41_convert_raw(&airqualityDevice, raw_voc, 0, &vocIndex, NULL)) {
+                    hap_val_t vocVal;
+                    vocVal.i = resolveAirQualityIndex(vocIndex);
+                    hap_char_update_val(airQualityChar, &vocVal);
+                }
             } else {
                 ESP_LOGI(TAG, "Failed executing conditioning...");
             }
         } else {
             err = sgp41_measure_raw(&airqualityDevice, rHumidityCompensation, temperatureCompensation, &raw_voc, &raw_nox);
-            if ( err != ESP_OK ) {
+            if ( err == ESP_OK ) {
+                int32_t vocIndex;
+                int32_t noxIndex;
+                if ( ESP_OK == sgp41_convert_raw(&airqualityDevice, raw_voc, raw_nox, &vocIndex, &noxIndex)) {
+                    hap_val_t vocVal;
+                    vocVal.i = resolveAirQualityIndex(vocIndex);
+                    hap_char_update_val(airQualityChar, &vocVal);
+                    //TODO : alter index for VOC
+                }
+            } else {
                 ESP_LOGI(TAG, "Failed measuring VOC and NOX");
-            }
+            } 
         }
         // Feed it to SGP40
         ESP_LOGI(TAG, "%.2f °C, %.2f %%, VOC raw: %i, NOX raw : %i", temperature, humidity, raw_voc, raw_nox);//, voc_index);//, voc_index_name(voc_index));

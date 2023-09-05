@@ -7,10 +7,11 @@
  *
  * BSD Licensed as described in the file LICENSE
  */
+#include "sgp41.h"
+
 #include <esp_err.h>
 #include <esp_idf_lib_helpers.h>
 #include <esp_log.h>
-#include "sgp41.h"
 #include <math.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -163,6 +164,9 @@ esp_err_t sgp41_init(sgp41_t *dev)
 
     //VocAlgorithm_init(&dev->voc);
 
+     GasIndexAlgorithm_init(&dev->vocParams, GasIndexAlgorithm_ALGORITHM_TYPE_VOC);
+     GasIndexAlgorithm_init(&dev->noxParams, GasIndexAlgorithm_ALGORITHM_TYPE_NOX);
+
     return ESP_OK;
 }
 
@@ -267,7 +271,7 @@ esp_err_t sgp41_measure_raw(sgp41_t *dev, float humidity, float temperature, uin
     //return execute_cmd(dev, CMD_MEASURE_RAW, TIME_MEASURE_RAW, params, 2, raw, 1);
 }
 
-esp_err_t sgp41_measure_index(sgp41_t *dev, float humidity, float temperature, int8_t *voc_index, int8_t *nox_index)
+esp_err_t sgp41_measure_index(sgp41_t *dev, float humidity, float temperature, int32_t *voc_index, int32_t *nox_index)
 {
     CHECK_ARG(dev);
     CHECK_ARG(voc_index);
@@ -276,6 +280,22 @@ esp_err_t sgp41_measure_index(sgp41_t *dev, float humidity, float temperature, i
     uint16_t voc_raw, nox_raw;
     CHECK(sgp41_measure_raw(dev, humidity, temperature, &voc_raw, &nox_raw));
     //VocAlgorithm_process(&dev->voc, raw, voc_index);
+    GasIndexAlgorithm_process(&dev->vocParams, voc_raw, voc_index);
+    GasIndexAlgorithm_process(&dev->noxParams, nox_raw, nox_index);
+
+    return ESP_OK;
+}
+
+
+esp_err_t sgp41_convert_raw(sgp41_t *dev, uint16_t sraw_voc, uint16_t sraw_nox, int32_t *voc_index, int32_t *nox_index) {
+
+    if (voc_index != NULL ) {
+        GasIndexAlgorithm_process(&dev->vocParams, sraw_voc, voc_index);
+    }
+
+    if ( nox_index != NULL ) {
+        GasIndexAlgorithm_process(&dev->noxParams, sraw_nox, nox_index);
+    }
 
     return ESP_OK;
 }
